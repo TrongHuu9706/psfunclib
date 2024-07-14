@@ -1,0 +1,54 @@
+# copy_and_check.ps1
+param (
+    [string]$sourceDir = "C:\SourceDirectory",
+    [string]$destinationDir = "D:\DestinationDirectory",
+    [string]$logFile = "C:\Path\To\Log\copy_files.log",
+    [string]$fileFilter = "*.*"  # Optional: filter files by extension, e.g., "*.txt"
+)
+
+# Function to log messages
+function Write-Log {
+    param (
+        [string]$message
+    )
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Add-Content -Path $logFile -Value "$timestamp - $message"
+}
+
+# Function to copy files and log actions
+function Copy-Files {
+    try {
+        if (Test-Path -Path $sourceDir) {
+            if (!(Test-Path -Path $destinationDir)) {
+                New-Item -ItemType Directory -Path $destinationDir | Out-Null
+            }
+
+            # Get current time and calculate the time 4 hours ago
+            $now = Get-Date
+            $fourHoursAgo = $now.AddHours(-4)
+
+            # Get files modified in the last 4 hours
+            $filesToCopy = Get-ChildItem -Path "$sourceDir\$fileFilter" | Where-Object { $_.LastWriteTime -ge $fourHoursAgo }
+
+            if ($filesToCopy.Count -gt 0) {
+                $filesToCopy | ForEach-Object {
+                    Copy-Item -Path $_.FullName -Destination $destinationDir -Force
+                }
+                $message = "Files copied from $sourceDir to $destinationDir: $($filesToCopy.Count)"
+                Write-Log $message
+            } else {
+                $message = "No files modified in the last 4 hours."
+                Write-Log $message
+            }
+        } else {
+            $message = "Source directory $sourceDir does not exist."
+            Write-Log $message
+        }
+    } catch {
+        $message = "Error: $_"
+        Write-Log $message
+    }
+}
+
+# Execute the copy function
+Copy-Files
